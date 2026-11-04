@@ -1,0 +1,5 @@
+mongodb_password    = "RoboMongo123!"
+mysql_password      = "RoboMySQL123!"
+redis_password       = "RoboRedis123!"
+rabbitmq_password   = "RoboRabbit123!"
+alert_email         = "educational-lab@example.com"

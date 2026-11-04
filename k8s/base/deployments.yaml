@@ -1,0 +1,260 @@
+# Frontend Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-frontend
+  namespace: roboshop
+spec:
+  replicas: 1 # Cost optimized: 1 replica instead of 3
+  selector:
+    matchLabels:
+      app: roboshop-frontend
+  template:
+    metadata:
+      labels:
+        app: roboshop-frontend
+    spec:
+      containers:
+      - name: roboshop-frontend
+        image: ruthvikk1214/roboshop-frontend:1.0 # UPDATE THIS
+        ports:
+        - containerPort: 80
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "100m"
+          limits:
+            memory: "128Mi"
+            cpu: "200m"
+---
+# Frontend Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-frontend
+  namespace: roboshop
+spec:
+  type: NodePort
+  selector:
+    app: roboshop-frontend
+  ports:
+    - port: 80
+      targetPort: 80
+      nodePort: 30080
+---
+# Catalogue Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-catalogue
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roboshop-catalogue
+  template:
+    metadata:
+      labels:
+        app: roboshop-catalogue
+    spec:
+      containers:
+      - name: roboshop-catalogue
+        image: ruthvikk1214/roboshop-catalogue:1.0 # UPDATE THIS
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+# Catalogue Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-catalogue
+  namespace: roboshop
+spec:
+  type: ClusterIP
+  selector:
+    app: roboshop-catalogue
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# Cart Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-cart
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roboshop-cart
+  template:
+    metadata:
+      labels:
+        app: roboshop-cart
+    spec:
+      containers:
+      - name: roboshop-cart
+        image: ruthvikk1214/roboshop-cart:1.2 # UPDATE THIS
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+# Cart Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-cart
+  namespace: roboshop
+spec:
+  type: ClusterIP
+  selector:
+    app: roboshop-cart
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# User Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-user
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roboshop-user
+  template:
+    metadata:
+      labels:
+        app: roboshop-user
+    spec:
+      containers:
+      - name: roboshop-user
+        image: ruthvikk1214/roboshop-user:1.1 # UPDATE THIS
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+# User Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-user
+  namespace: roboshop
+spec:
+  type: ClusterIP
+  selector:
+    app: roboshop-user
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+# Payment Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-payment
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roboshop-payment
+  template:
+    metadata:
+      labels:
+        app: roboshop-payment
+    spec:
+      containers:
+      - name: roboshop-payment
+        image: ruthvikk1214/roboshop-payment:1.0 # UPDATE THIS
+        ports:
+        - containerPort: 8000
+        resources:
+          requests:
+            memory: "128Mi"
+            cpu: "100m"
+          limits:
+            memory: "256Mi"
+            cpu: "300m"
+---
+# Payment Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-payment
+  namespace: roboshop
+spec:
+  type: ClusterIP
+  selector:
+    app: roboshop-payment
+  ports:
+    - port: 8000
+      targetPort: 8000
+---
+# Shipping Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: roboshop-shipping
+  namespace: roboshop
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: roboshop-shipping
+  template:
+    metadata:
+      labels:
+        app: roboshop-shipping
+    spec:
+      containers:
+      - name: roboshop-shipping
+        image: ruthvikk1214/roboshop-shipping:1.0 # UPDATE THIS
+        ports:
+        - containerPort: 8080
+        resources:
+          requests:
+            memory: "256Mi"
+            cpu: "200m"
+          limits:
+            memory: "512Mi"
+            cpu: "400m"
+        # Shipping usually needs Java/JVM, so it gets a bit more memory
+---
+# Shipping Service
+apiVersion: v1
+kind: Service
+metadata:
+  name: roboshop-shipping
+  namespace: roboshop
+spec:
+  type: ClusterIP
+  selector:
+    app: roboshop-shipping
+  ports:
+    - port: 8080
+      targetPort: 8080
+}

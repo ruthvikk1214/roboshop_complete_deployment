@@ -138,7 +138,7 @@ resource "aws_eks_node_group" "roboshop" {
   instance_types = var.node_group_instance_types
   
   ami_type       = "AL2_x86_64"
-  capacity_type  = "ON_DEMAND"
+  capacity_type  = "SPOT"
   disk_size      = 50
   
   labels = {

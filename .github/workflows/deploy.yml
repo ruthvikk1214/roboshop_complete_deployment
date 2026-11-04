@@ -1,0 +1,121 @@
+name: Roboshop CI/CD Pipeline
+
+on:
+  push:
+    branches: [ "main" ]
+  pull_request:
+    branches: [ "main" ]
+
+jobs:
+  # Stage 1: Static Code Analysis
+  sonarqube:
+    name: SonarQube Analysis
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: SonarQube Scan
+        uses: sonarsource/sonarqube-scan-action@master
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
+        continue-on-error: true # Ignore vulnerabilities as requested
+
+  # Stage 2: Image Vulnerability Scanning
+  trivy:
+    name: Trivy Vulnerability Scan
+    needs: sonarqube
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Run Trivy Scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'ruthvikk1214/roboshop-frontend:1.0' # Example image
+          format: 'table'
+          exit-code: '0' # Set to 0 to ignore vulnerabilities and keep pipeline running
+          severity: 'CRITICAL,HIGH'
+
+  # Stage 3: Infrastructure Security Scanning
+  tfsec:
+    name: Terraform Security Scan
+    needs: trivy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: tfsec Scan
+        uses: tfsec/tfsec-action@master
+        with:
+          working_directory: infrastructure
+        continue-on-error: true # Ignore vulnerabilities
+
+  # Stage 4: Validation and Planning
+  tf_validate_plan:
+    name: Terraform Validate & Plan
+    needs: tfsec
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init
+
+      - name: Terraform Validate
+        working-directory: ./infrastructure
+        run: terraform validate
+
+      - name: Terraform Plan
+        working-directory: ./infrastructure
+        run: terraform plan -out=tfplan
+
+  # Stage 5: Manual Approval and Apply
+  # In GitHub Actions, manual gates are handled via "Environments" and "Required Reviewers"
+  deploy:
+    name: Deploy Infrastructure & App
+    needs: tf_validate_plan
+    runs-on: ubuntu-latest
+    environment: production # This enables the manual approval gate in GitHub settings
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Terraform Init
+        working-directory: ./infrastructure
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ./infrastructure
+        run: terraform apply -auto-approve
+
+      - name: Update KubeConfig
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
+
+      - name: Deploy to Kubernetes
+        run: |
+          kubectl apply -f k8s/base/namespace.yaml
+          kubectl apply -f k8s/base/deployments.yaml
+          kubectl apply -f k8s/base/ingress.yaml

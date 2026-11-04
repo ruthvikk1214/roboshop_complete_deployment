@@ -86,13 +86,13 @@ module "alb" {
 }
 
 # Monitoring Module
-module "monitoring" {
-  source = "./modules/monitoring"
-  
-  environment       = var.environment
-  aws_region        = var.aws_region
-  alert_email       = var.alert_email
-  alb_arn           = module.alb.alb_arn
-  cluster_name      = module.eks.cluster_name
-  tags              = var.tags
-}
+# module "monitoring" {
+#   source = "./modules/monitoring"
+#
+#   environment       = var.environment
+#   aws_region        = var.aws_region
+#   alert_email       = var.alert_email
+#   alb_arn           = module.alb.alb_arn
+#   cluster_name      = module.eks.cluster_name
+#   tags              = var.tags
+# }
