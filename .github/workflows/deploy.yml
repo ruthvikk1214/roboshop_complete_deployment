@@ -47,16 +47,16 @@ jobs:
 
   # Stage 3: Infrastructure Security Scanning
   tfsec:
-    name: Terraform Security Scan
+    name: Terraform Security Scan (Checkov)
     needs: trivy
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
 
-      - name: tfsec Scan
-        uses: tfsec/tfsec-action@master
+      - name: Checkov Scan
+        uses: bridgecrewio/checkov-action@master
         with:
-          working_directory: infrastructure
+          directory: infrastructure
         continue-on-error: true # Ignore vulnerabilities
 
   # Stage 4: Validation and Planning
