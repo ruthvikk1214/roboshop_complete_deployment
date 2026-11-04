@@ -9,18 +9,17 @@ on:
 jobs:
   # Stage 1: Static Code Analysis
   sonarqube:
-    name: SonarQube Analysis
+    name: SonarCloud Analysis
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
         with:
           fetch-depth: 0
 
-      - name: SonarQube Scan
+      - name: SonarCloud Scan
         uses: sonarsource/sonarqube-scan-action@master
         env:
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-          SONAR_HOST_URL: ${{ secrets.SONAR_HOST_URL }}
         continue-on-error: true # Ignore vulnerabilities as requested
 
   # Stage 2: Image Vulnerability Scanning
