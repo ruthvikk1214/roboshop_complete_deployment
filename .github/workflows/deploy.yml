@@ -77,13 +77,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Terraform Init and Plan
-        run: |
-          cd infrastructure
-          ls -R
-          terraform init
-          terraform validate
-          terraform plan -out=tfplan
+      - name: Terraform Init
+        run: terraform -chdir=infrastructure init
+
+      - name: Terraform Validate
+        run: terraform -chdir=infrastructure validate
+
+      - name: Terraform Plan
+        run: terraform -chdir=infrastructure plan -out=tfplan
 
   # Stage 5: Manual Approval and Apply
   # In GitHub Actions, manual gates are handled via "Environments" and "Required Reviewers"
@@ -106,12 +107,10 @@ jobs:
           aws-region: ${{ secrets.AWS_REGION }}
 
       - name: Terraform Init
-        working-directory: ./infrastructure
-        run: terraform init
+        run: terraform -chdir=infrastructure init
 
       - name: Terraform Apply
-        working-directory: ./infrastructure
-        run: terraform apply -auto-approve
+        run: terraform -chdir=infrastructure apply -auto-approve
 
       - name: Update KubeConfig
         run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
