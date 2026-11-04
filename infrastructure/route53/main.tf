@@ -1,0 +1,57 @@
+variable "aws_region" {
+  type    = string
+  default = "us-east-1"
+}
+
+variable "domain_name" {
+  description = "The base domain name (e.g., rk1214.in)"
+  type        = string
+  default     = "rk1214.in"
+}
+
+variable "subdomain" {
+  description = "The subdomain for the app (e.g., roboshop)"
+  type        = string
+  default     = "roboshop"
+}
+
+variable "tags" {
+  type    = map(string)
+  default = {
+    Project = "Roboshop"
+  }
+}
+
+# Data source to find the existing Hosted Zone for the domain
+data "aws_route53_zone" "main" {
+  name         = var.domain_name
+  private_zone = false
+}
+
+# The Route53 record for the application
+# Note: The alias target (alb_dns_name) will be passed from the ALB deployment
+resource "aws_route53_record" "roboshop" {
+  zone_id = data.aws_route53_zone.main.zone_id
+  name    = "${var.subdomain}.${var.domain_name}"
+  type    = "A"
+
+  alias {
+    name                   = var.alb_dns_name
+    zone_id                = var.alb_zone_id
+    evaluate_target_health = true
+  }
+}
+
+variable "alb_dns_name" {
+  description = "The DNS name of the ALB"
+  type        = string
+}
+
+variable "alb_zone_id" {
+  description = "The Zone ID of the ALB"
+  type        = string
+}
+
+output "app_url" {
+  value = "https://${var.subdomain}.${var.domain_name}"
+}
