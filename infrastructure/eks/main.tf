@@ -54,7 +54,7 @@ resource "aws_iam_role_policy_attachment" "ecr_readonly" {
 resource "aws_eks_cluster" "roboshop" {
   name     = "${var.environment}-roboshop-eks"
   role_arn = aws_iam_role.eks_cluster.arn
-  version  = "1.28"
+  version  = "1.31"
 
   vpc_config {
     subnet_ids              = var.private_subnet_ids
