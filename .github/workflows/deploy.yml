@@ -91,7 +91,7 @@ jobs:
           grep "version" infrastructure/eks/main.tf
           echo "Checking VPC CIDR in file..."
           grep "vpc_cidr" infrastructure/variables.tf
-          terraform -chdir=infrastructure plan -out=tfplan
+          terraform -chdir=infrastructure plan -out=tfplan -lock=false
 
   # Stage 5: Manual Approval and Apply
   # In GitHub Actions, manual gates are handled via "Environments" and "Required Reviewers"
