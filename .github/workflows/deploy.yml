@@ -84,7 +84,13 @@ jobs:
         run: terraform -chdir=infrastructure validate
 
       - name: Terraform Plan
-        run: terraform -chdir=infrastructure plan -out=tfplan
+        run: |
+          terraform -chdir=infrastructure init
+          echo "Checking EKS version in file..."
+          grep "version" infrastructure/eks/main.tf
+          echo "Checking VPC CIDR in file..."
+          grep "vpc_cidr" infrastructure/variables.tf
+          terraform -chdir=infrastructure plan -out=tfplan
 
   # Stage 5: Manual Approval and Apply
   # In GitHub Actions, manual gates are handled via "Environments" and "Required Reviewers"
