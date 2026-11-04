@@ -12,7 +12,6 @@ terraform {
     bucket         = "roboshop-terraform-state-rk1214"
     key            = "roboshop/infrastructure.tfstate"
     region         = "us-east-1"
-    dynamodb_table  = "roboshop-terraform-locks"
     encrypt        = true
   }
 }
