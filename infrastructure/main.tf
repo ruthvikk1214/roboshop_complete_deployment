@@ -48,10 +48,11 @@ module "route53" {
   subdomain     = var.subdomain
   tags          = var.tags
 
-  # These will be provided once the ALB is created (likely in EKS or a separate ALB module)
-  # For now, we'll leave them as placeholders or pass them from EKS
-  alb_dns_name  = module.eks.alb_dns_name
-  alb_zone_id   = module.eks.alb_zone_id
+  # These are now optional or handled via ExternalDNS inside K8s.
+  # We pass empty strings or remove the dependency since the resource
+  # in route53/main.tf is commented out.
+  alb_dns_name  = ""
+  alb_zone_id   = ""
 }
 
 # EKS Module
