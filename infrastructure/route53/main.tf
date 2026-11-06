@@ -29,7 +29,9 @@ data "aws_route53_zone" "main" {
 }
 
 # The Route53 record for the application
-# Note: The alias target (alb_dns_name) will be passed from the ALB deployment
+# Note: This is commented out because the ALB is created by the AWS LB Controller in K8s.
+# It is recommended to use ExternalDNS for automatic record management.
+/*
 resource "aws_route53_record" "roboshop" {
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "${var.subdomain}.${var.domain_name}"
@@ -41,6 +43,7 @@ resource "aws_route53_record" "roboshop" {
     evaluate_target_health = true
   }
 }
+*/
 
 variable "alb_dns_name" {
   description = "The DNS name of the ALB"

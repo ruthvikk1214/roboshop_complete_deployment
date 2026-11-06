@@ -1,6 +1,6 @@
 # IAM Role for EKS Cluster
 resource "aws_iam_role" "eks_cluster" {
-  name = "${var.environment}-roboshop-eks-cluster-role"
+  # name removed to avoid EntityAlreadyExists errors in CI/CD
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -21,7 +21,7 @@ resource "aws_iam_role_policy_attachment" "eks_cluster_policy" {
 
 # IAM Role for EKS Worker Nodes
 resource "aws_iam_role" "eks_nodes" {
-  name = "${var.environment}-roboshop-eks-nodes-role"
+  # name removed to avoid EntityAlreadyExists errors in CI/CD
 
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
@@ -98,16 +98,6 @@ resource "aws_eks_node_group" "roboshop" {
 # We provide the placeholder outputs for the root module to link to Route53
 # Note: In a real scenario, the ALB is created by the AWS Load Balancer Controller
 # inside K8s, so the DNS name isn't available until AFTER the cluster is up.
-# For Terraform to plan, we can use a mock or wait until the app is deployed.
-# To make the plan pass, we will output a dummy or conditional value.
-
-output "alb_dns_name" {
-  value = "placeholder.alb.amazonaws.com"
-}
-
-output "alb_zone_id" {
-  value = "Z1234567890ABC"
-}
 
 output "cluster_endpoint" {
   value = aws_eks_cluster.roboshop.endpoint
