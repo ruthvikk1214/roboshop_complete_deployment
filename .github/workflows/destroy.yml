@@ -21,10 +21,112 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
+      - name: Connect to EKS Cluster
+        id: connect_eks
+        run: |
+          if aws eks describe-cluster --name prod-roboshop-eks --region ${{ secrets.AWS_REGION }} >/dev/null 2>&1; then
+            echo "EKS cluster prod-roboshop-eks exists, updating kubeconfig..."
+            aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
+            echo "has_cluster=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "EKS cluster does not exist or is not accessible."
+            echo "has_cluster=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Clean Up Kubernetes Resources and Ingress
+        if: steps.connect_eks.outputs.has_cluster == 'true'
+        run: |
+          echo "=== 1. Deleting Ingress (triggers AWS ALB deletion) ==="
+          kubectl delete ingress -n roboshop --all --timeout=60s || true
+
+          echo "=== 2. Deleting application and database workloads ==="
+          kubectl delete -f k8s/base/deployments.yaml --ignore-not-found=true || true
+          kubectl delete -f k8s/base/databases.yaml --ignore-not-found=true || true
+          kubectl delete -f k8s/base/namespace.yaml --ignore-not-found=true || true
+
+          echo "=== 3. Deleting ExternalDNS and AWS Load Balancer Controller ==="
+          kubectl delete deployment external-dns -n kube-system --ignore-not-found=true || true
+          helm uninstall aws-load-balancer-controller -n kube-system || true
+
+      - name: Clean Up AWS Load Balancers and Network Interfaces
+        run: |
+          echo "=== Checking for active VPC ==="
+          VPC_ID=$(aws ec2 describe-vpcs --region ${{ secrets.AWS_REGION }} --filters "Name=tag:Name,Values=prod-roboshop-vpc" --query "Vpcs[0].VpcId" --output text 2>/dev/null || echo "")
+
+          if [ -n "$VPC_ID" ] && [ "$VPC_ID" != "None" ]; then
+            echo "Found VPC: $VPC_ID"
+
+            echo "=== Checking for active ALBs in VPC $VPC_ID ==="
+            ALB_ARNS=$(aws elbv2 describe-load-balancers --region ${{ secrets.AWS_REGION }} --query "LoadBalancers[?VpcId=='$VPC_ID'].LoadBalancerArn" --output text 2>/dev/null || echo "")
+            for ARN in $ALB_ARNS; do
+              if [ -n "$ARN" ] && [ "$ARN" != "None" ]; then
+                echo "Deleting Load Balancer: $ARN"
+                aws elbv2 delete-load-balancer --region ${{ secrets.AWS_REGION }} --load-balancer-arn "$ARN"
+              fi
+            done
+
+            if [ -n "$ALB_ARNS" ] && [ "$ALB_ARNS" != "None" ]; then
+              echo "Waiting for load balancers to finish deletion..."
+              for i in {1..30}; do
+                REMAINING=$(aws elbv2 describe-load-balancers --region ${{ secrets.AWS_REGION }} --query "LoadBalancers[?VpcId=='$VPC_ID'].LoadBalancerArn" --output text 2>/dev/null || echo "")
+                if [ -z "$REMAINING" ] || [ "$REMAINING" == "None" ]; then
+                  echo "All load balancers deleted."
+                  break
+                fi
+                echo "Waiting 5 seconds for ALB deletion... ($i/30)"
+                sleep 5
+              done
+            fi
+
+            echo "=== Checking for active Target Groups in VPC $VPC_ID ==="
+            TG_ARNS=$(aws elbv2 describe-target-groups --region ${{ secrets.AWS_REGION }} --query "TargetGroups[?VpcId=='$VPC_ID'].TargetGroupArn" --output text 2>/dev/null || echo "")
+            for TG in $TG_ARNS; do
+              if [ -n "$TG" ] && [ "$TG" != "None" ]; then
+                echo "Deleting Target Group: $TG"
+                aws elbv2 delete-target-group --region ${{ secrets.AWS_REGION }} --target-group-arn "$TG" || true
+              fi
+            done
+
+            echo "=== Waiting for ELB Network Interfaces to detach ==="
+            for i in {1..20}; do
+              ENIS=$(aws ec2 describe-network-interfaces --region ${{ secrets.AWS_REGION }} --filters "Name=vpc-id,Values=$VPC_ID" "Name=description,Values=*ELB*" --query "NetworkInterfaces[*].NetworkInterfaceId" --output text 2>/dev/null || echo "")
+              if [ -z "$ENIS" ] || [ "$ENIS" == "None" ]; then
+                echo "No ELB network interfaces remain."
+                break
+              fi
+              echo "Waiting 5 seconds for ELB ENIs to release... ($i/20)"
+              sleep 5
+            done
+          else
+            echo "VPC not found, skipping ALB cleanup."
+          fi
+
+      - name: Clean Up Route53 Records Created by ExternalDNS
+        run: |
+          echo "=== Checking Route53 hosted zone for rk1214.in ==="
+          ZONE_ID=$(aws route53 list-hosted-zones-by-name --dns-name "rk1214.in." --query "HostedZones[0].Id" --output text 2>/dev/null | sed 's#/hostedzone/##' || echo "")
+
+          if [ -n "$ZONE_ID" ] && [ "$ZONE_ID" != "None" ]; then
+            echo "Found Hosted Zone ID: $ZONE_ID"
+            
+            RECORDS=$(aws route53 list-resource-record-sets --hosted-zone-id "$ZONE_ID" \
+              --query "ResourceRecordSets[?contains(Name, 'roboshop')]" --output json 2>/dev/null || echo "[]")
+
+            COUNT=$(echo "$RECORDS" | jq '. | length' 2>/dev/null || echo 0)
+            if [ "$COUNT" -gt 0 ]; then
+              echo "Found $COUNT record(s) matching 'roboshop' to delete."
+              CHANGES=$(echo "$RECORDS" | jq '[.[] | {Action: "DELETE", ResourceRecordSet: .}]')
+              PAYLOAD=$(jq -n --argjson changes "$CHANGES" '{Comment: "Delete roboshop records during cleanup", Changes: $changes}')
+              aws route53 change-resource-record-sets --hosted-zone-id "$ZONE_ID" --change-batch "$PAYLOAD" || echo "Route53 deletion finished with warnings"
+            else
+              echo "No matching roboshop Route53 records found."
+            fi
+          else
+            echo "Hosted zone rk1214.in not found, skipping Route53 cleanup."
+          fi
+
       - name: Terraform Init
-        working-directory: ./infrastructure
-        run: terraform init
+        run: terraform -chdir=infrastructure init
 
       - name: Terraform Destroy
-        working-directory: ./infrastructure
-        run: terraform destroy -auto-approve
+        run: terraform -chdir=infrastructure destroy -auto-approve -lock=false

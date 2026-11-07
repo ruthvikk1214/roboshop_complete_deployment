@@ -155,6 +155,7 @@ jobs:
     name: Sync DNS Records
     needs: deploy
     runs-on: ubuntu-latest
+    environment: production
     steps:
       - uses: actions/checkout@v4
 
@@ -168,15 +169,20 @@ jobs:
       - name: Update KubeConfig
         run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
 
-      - name: Install ExternalDNS
+      - name: Install ExternalDNS (pinned release)
         run: |
-          kubectl apply -f https://github.com/kubernetes-sigs/external-dns/releases/latest/download/external-dns.yml
+          kubectl apply -f https://github.com/kubernetes-sigs/external-dns/releases/download/v0.13.2/external-dns.yaml
+
+      - name: Wait for ExternalDNS rollout
+        run: |
+          kubectl rollout status deployment/external-dns -n kube-system --timeout=120s
 
       - name: Configure ExternalDNS for Roboshop
         run: |
-          kubectl patch deployment external-dns -n kube-system \
-            -p '{"spec":{"template":{"spec":{"containers":[{"name":"external-dns","args":["--source=ingress","--target-type=CNAME","--domain-filter=rk1214.in"]}]}}}'
+          kubectl patch deployment external-dns -n kube-system --type=merge -p \
+            '{"spec":{"template":{"spec":{"containers":[{"name":"external-dns","args":["--source=ingress","--target-type=CNAME","--domain-filter=rk1214.in","--policy=upsert-only","--registry=txt","--txt-owner-id=roboshop-eks"]}]}}}}'
 
-      - name: Wait for DNS Propagation
+      - name: Verify Ingress status
         run: |
-          echo "DNS sync initiated - check Route53 console"
+          kubectl get ingress -n roboshop
+          echo "Confirm roboshop.rk1214.in CNAME appears in Route53 hosted zone rk1214.in"

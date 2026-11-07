@@ -71,7 +71,7 @@ variable "alb_zone_id" {
 }
 
 variable "tags" {
-  type    = map(string)
+  type = map(string)
   default = {
     Project = "Roboshop"
   }
