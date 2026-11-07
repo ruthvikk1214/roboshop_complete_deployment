@@ -33,12 +33,6 @@ module "vpc" {
   tags                = var.tags
 }
 
-# Security Groups (using the vpc module's outputs to feed the SGs if they were separate,
-# but since we put them in the vpc folder, we just need to pass the vpc_id)
-# Note: In our current structure, the SGs are inside the vpc folder.
-# If we want them as a separate module call, we'd do it here.
-# For now, they are bundled in the vpc module.
-
 # Route53 Module
 module "route53" {
   source = "./route53"
@@ -48,11 +42,8 @@ module "route53" {
   subdomain     = var.subdomain
   tags          = var.tags
 
-  # These are now optional or handled via ExternalDNS inside K8s.
-  # We pass empty strings or remove the dependency since the resource
-  # in route53/main.tf is commented out.
-  alb_dns_name  = ""
-  alb_zone_id   = ""
+  alb_dns_name  = var.alb_dns_name
+  alb_zone_id   = var.alb_zone_id
 }
 
 # EKS Module

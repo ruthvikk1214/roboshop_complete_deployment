@@ -8,7 +8,6 @@ metadata:
     alb.ingress.kubernetes.io/target-type: ip
     alb.ingress.kubernetes.io/healthcheck-path: /
     alb.ingress.kubernetes.io/listen-ports: '[{"HTTP": 80}, {"HTTPS": 443}]'
-    alb.ingress.kubernetes.io/certificate-arn: "arn:aws:acm:us-east-1:XXXXX:certificate/XXXXX" # UPDATE THIS
 spec:
   ingressClassName: alb
   rules:

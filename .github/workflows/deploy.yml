@@ -127,3 +127,23 @@ jobs:
           kubectl apply -f k8s/base/namespace.yaml
           kubectl apply -f k8s/base/deployments.yaml
           kubectl apply -f k8s/base/ingress.yaml
+# Stage 6: ExternalDNS - Sync ALB DNS to Route53
+  external-dns:
+    name: Sync DNS Records
+    needs: deploy
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install ExternalDNS
+        run: |
+          kubectl apply -f https://github.com/kubernetes-sigs/external-dns/releases/latest/download/external-dns.yml
+
+      - name: Configure ExternalDNS for Roboshop
+        run: |
+          kubectl patch deployment external-dns -n kube-system \
+            -p '{"spec":{"template":{"spec":{"containers":[{"name":"external-dns","args":["--source=aws","--target-type=CNAME","--domain-filter=roboshop.rk1214.in"]}]}}}'
+
+      - name: Wait for DNS Propagation
+        run: |
+          echo "DNS sync initiated - check Route53 console"
