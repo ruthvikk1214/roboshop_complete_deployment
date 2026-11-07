@@ -86,7 +86,6 @@ jobs:
 
       - name: Terraform Plan
         run: |
-          terraform -chdir=infrastructure init
           echo "Checking EKS version in file..."
           grep "version" infrastructure/eks/main.tf
           echo "Checking VPC CIDR in file..."
@@ -122,9 +121,33 @@ jobs:
       - name: Update KubeConfig
         run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
 
+      - name: Install AWS Load Balancer Controller
+        run: |
+          # Install Helm
+          curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+          # Add EKS Helm chart repo
+          helm repo add eks https://aws.github.io/eks-charts
+          helm repo update
+
+          # Install the AWS Load Balancer Controller
+          # Note: For production, create a dedicated IAM role with IRSA
+          helm upgrade --install aws-load-balancer-controller eks/aws-load-balancer-controller \
+            -n kube-system \
+            --set clusterName=prod-roboshop-eks \
+            --set serviceAccount.create=true \
+            --set serviceAccount.name=aws-load-balancer-controller \
+            --set region=${{ secrets.AWS_REGION }} \
+            --set vpcId=$(aws ec2 describe-vpcs --filters "Name=tag:Name,Values=prod-roboshop-vpc" --query "Vpcs[0].VpcId" --output text)
+
+          # Wait for controller to be ready
+          kubectl rollout status deployment/aws-load-balancer-controller -n kube-system --timeout=120s
+
       - name: Deploy to Kubernetes
         run: |
           kubectl apply -f k8s/base/namespace.yaml
+          kubectl apply -f k8s/base/databases.yaml
+          sleep 15
           kubectl apply -f k8s/base/deployments.yaml
           kubectl apply -f k8s/base/ingress.yaml
 # Stage 6: ExternalDNS - Sync ALB DNS to Route53
@@ -135,6 +158,16 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Configure AWS Credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ${{ secrets.AWS_REGION }}
+
+      - name: Update KubeConfig
+        run: aws eks update-kubeconfig --region ${{ secrets.AWS_REGION }} --name prod-roboshop-eks
+
       - name: Install ExternalDNS
         run: |
           kubectl apply -f https://github.com/kubernetes-sigs/external-dns/releases/latest/download/external-dns.yml
@@ -142,7 +175,7 @@ jobs:
       - name: Configure ExternalDNS for Roboshop
         run: |
           kubectl patch deployment external-dns -n kube-system \
-            -p '{"spec":{"template":{"spec":{"containers":[{"name":"external-dns","args":["--source=aws","--target-type=CNAME","--domain-filter=roboshop.rk1214.in"]}]}}}'
+            -p '{"spec":{"template":{"spec":{"containers":[{"name":"external-dns","args":["--source=ingress","--target-type=CNAME","--domain-filter=rk1214.in"]}]}}}'
 
       - name: Wait for DNS Propagation
         run: |

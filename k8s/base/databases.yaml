@@ -1,0 +1,234 @@
+# =============================================================================
+# Roboshop Database & Middleware Services
+# =============================================================================
+# NOTE: No PersistentVolumes are used — all data is EPHEMERAL.
+# Restarting a pod will lose its data. This is intentional for demo/learning.
+# =============================================================================
+
+# -----------------------------------------------------------------------------
+# MongoDB  (used by: catalogue, user)
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mongodb
+  namespace: roboshop
+  labels:
+    app: mongodb
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mongodb
+  template:
+    metadata:
+      labels:
+        app: mongodb
+        tier: database
+    spec:
+      containers:
+        - name: mongodb
+          image: mongo:7.0
+          ports:
+            - containerPort: 27017
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mongodb
+  namespace: roboshop
+  labels:
+    app: mongodb
+    tier: database
+spec:
+  type: ClusterIP
+  selector:
+    app: mongodb
+  ports:
+    - port: 27017
+      targetPort: 27017
+      protocol: TCP
+
+---
+# -----------------------------------------------------------------------------
+# Redis  (used by: cart, user)
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: redis
+  namespace: roboshop
+  labels:
+    app: redis
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: redis
+  template:
+    metadata:
+      labels:
+        app: redis
+        tier: database
+    spec:
+      containers:
+        - name: redis
+          image: redis:7-alpine
+          ports:
+            - containerPort: 6379
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: redis
+  namespace: roboshop
+  labels:
+    app: redis
+    tier: database
+spec:
+  type: ClusterIP
+  selector:
+    app: redis
+  ports:
+    - port: 6379
+      targetPort: 6379
+      protocol: TCP
+
+---
+# -----------------------------------------------------------------------------
+# MySQL  (used by: shipping)
+#   - Root password: RoboShop@1
+#   - Default database: cities
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mysql
+  namespace: roboshop
+  labels:
+    app: mysql
+    tier: database
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mysql
+  template:
+    metadata:
+      labels:
+        app: mysql
+        tier: database
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          ports:
+            - containerPort: 3306
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              value: "RoboShop@1"
+            - name: MYSQL_DATABASE
+              value: "cities"
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 512Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mysql
+  namespace: roboshop
+  labels:
+    app: mysql
+    tier: database
+spec:
+  type: ClusterIP
+  selector:
+    app: mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+      protocol: TCP
+
+---
+# -----------------------------------------------------------------------------
+# RabbitMQ  (used by: payment)
+#   - Default user/pass: guest/guest
+#   - Management UI on port 15672 (optional, exposed for debugging)
+# -----------------------------------------------------------------------------
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: rabbitmq
+  namespace: roboshop
+  labels:
+    app: rabbitmq
+    tier: middleware
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: rabbitmq
+  template:
+    metadata:
+      labels:
+        app: rabbitmq
+        tier: middleware
+    spec:
+      containers:
+        - name: rabbitmq
+          image: rabbitmq:3-management-alpine
+          ports:
+            - containerPort: 5672
+              name: amqp
+            - containerPort: 15672
+              name: management
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: rabbitmq
+  namespace: roboshop
+  labels:
+    app: rabbitmq
+    tier: middleware
+spec:
+  type: ClusterIP
+  selector:
+    app: rabbitmq
+  ports:
+    - port: 5672
+      targetPort: 5672
+      protocol: TCP
+      name: amqp
+    - port: 15672
+      targetPort: 15672
+      protocol: TCP
+      name: management

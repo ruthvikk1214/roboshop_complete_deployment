@@ -16,7 +16,7 @@ variable "subdomain" {
 }
 
 variable "tags" {
-  type    = map(string)
+  type = map(string)
   default = {
     Project = "Roboshop"
   }
@@ -31,8 +31,9 @@ data "aws_route53_zone" "main" {
 # The Route53 record for the application
 # Note: This is commented out because the ALB is created by the AWS LB Controller in K8s.
 # It is recommended to use ExternalDNS for automatic record management.
-*
+
 resource "aws_route53_record" "roboshop" {
+  count   = var.alb_dns_name != "" ? 1 : 0
   zone_id = data.aws_route53_zone.main.zone_id
   name    = "${var.subdomain}.${var.domain_name}"
   type    = "A"
@@ -43,18 +44,20 @@ resource "aws_route53_record" "roboshop" {
     evaluate_target_health = true
   }
 }
-*
+
 
 variable "alb_dns_name" {
   description = "The DNS name of the ALB"
   type        = string
+  default     = ""
 }
 
 variable "alb_zone_id" {
   description = "The Zone ID of the ALB"
   type        = string
+  default     = ""
 }
 
 output "app_url" {
-  value = "https:${var.subdomain}.${var.domain_name}"
+  value = "https://${var.subdomain}.${var.domain_name}"
 }

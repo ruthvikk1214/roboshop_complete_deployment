@@ -49,13 +49,25 @@ variable "node_group_desired_size" {
 }
 
 variable "node_group_min_size" {
-type    = number
+  type    = number
   default = 1
 }
 
 variable "node_group_max_size" {
   type    = number
   default = 3
+}
+
+variable "alb_dns_name" {
+  description = "The DNS name of the ALB (populated after K8s ALB Controller creates the ALB)"
+  type        = string
+  default     = ""
+}
+
+variable "alb_zone_id" {
+  description = "The Zone ID of the ALB (populated after K8s ALB Controller creates the ALB)"
+  type        = string
+  default     = ""
 }
 
 variable "tags" {

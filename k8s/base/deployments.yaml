@@ -61,6 +61,9 @@ spec:
       containers:
       - name: roboshop-catalogue
         image: ruthvikk1214/roboshop-catalogue:1.0 # UPDATE THIS
+        env:
+        - name: MONGO_URL
+          value: "mongodb://mongodb:27017/catalogue"
         ports:
         - containerPort: 8080
         resources:
@@ -104,6 +107,13 @@ spec:
       containers:
       - name: roboshop-cart
         image: ruthvikk1214/roboshop-cart:1.2 # UPDATE THIS
+        env:
+        - name: REDIS_HOST
+          value: "redis"
+        - name: CATALOGUE_HOST
+          value: "roboshop-catalogue"
+        - name: CATALOGUE_PORT
+          value: "8080"
         ports:
         - containerPort: 8080
         resources:
@@ -147,6 +157,11 @@ spec:
       containers:
       - name: roboshop-user
         image: ruthvikk1214/roboshop-user:1.1 # UPDATE THIS
+        env:
+        - name: MONGO_URL
+          value: "mongodb://mongodb:27017/users"
+        - name: REDIS_URL
+          value: "redis://redis:6379"
         ports:
         - containerPort: 8080
         resources:
@@ -190,8 +205,15 @@ spec:
       containers:
       - name: roboshop-payment
         image: ruthvikk1214/roboshop-payment:1.0 # UPDATE THIS
+        env:
+        - name: CART_HOST
+          value: "roboshop-cart"
+        - name: USER_HOST
+          value: "roboshop-user"
+        - name: AMQP_HOST
+          value: "rabbitmq"
         ports:
-        - containerPort: 8000
+        - containerPort: 8080
         resources:
           requests:
             memory: "128Mi"
@@ -211,8 +233,8 @@ spec:
   selector:
     app: roboshop-payment
   ports:
-    - port: 8000
-      targetPort: 8000
+    - port: 8080
+      targetPort: 8080
 ---
 # Shipping Deployment
 apiVersion: apps/v1
@@ -233,6 +255,11 @@ spec:
       containers:
       - name: roboshop-shipping
         image: ruthvikk1214/roboshop-shipping:1.0 # UPDATE THIS
+        env:
+        - name: DB_HOST
+          value: "mysql"
+        - name: CART_ENDPOINT
+          value: "roboshop-cart:8080"
         ports:
         - containerPort: 8080
         resources:
